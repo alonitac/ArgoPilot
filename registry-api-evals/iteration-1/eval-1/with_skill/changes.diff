@@ -1,0 +1,8 @@
+diff --git a/__pycache__/main.cpython-312.pyc b/__pycache__/main.cpython-312.pyc
+new file mode 100644
+index 0000000..5477f2c
+Binary files /dev/null and b/__pycache__/main.cpython-312.pyc differ
+diff --git a/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc
+new file mode 100644
+index 0000000..1424caf
+Binary files /dev/null and b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc differ

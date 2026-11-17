@@ -1,0 +1,104 @@
+diff --git a/__pycache__/main.cpython-312.pyc b/__pycache__/main.cpython-312.pyc
+new file mode 100644
+index 0000000..51bcdd4
+Binary files /dev/null and b/__pycache__/main.cpython-312.pyc differ
+diff --git a/main.py b/main.py
+index f5079fe..4794fdd 100644
+--- a/main.py
++++ b/main.py
+@@ -1,4 +1,5 @@
+-from fastapi import FastAPI
++from fastapi import FastAPI, HTTPException
++from pydantic import BaseModel
+ 
+ app = FastAPI(title="AgroPilot registry-service", version="0.1.0")
+ 
+@@ -6,11 +7,24 @@ app = FastAPI(title="AgroPilot registry-service", version="0.1.0")
+ PRODUCTS: list[dict] = []
+ 
+ 
++class ProductPriceUpdate(BaseModel):
++    price: float
++
++
+ @app.get("/product/count")
+ def product_count() -> dict[str, int]:
+     return {"count": len(PRODUCTS)}
+ 
+ 
++@app.patch("/product/{product_id}")
++def update_product_price(product_id: int, update: ProductPriceUpdate) -> dict:
++    for product in PRODUCTS:
++        if product["id"] == product_id:
++            product["price"] = update.price
++            return product
++    raise HTTPException(status_code=404, detail="Product not found")
++
++
+ @app.get("/health")
+ def health() -> dict[str, str]:
+     return {"status": "ok"}
+diff --git a/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc
+new file mode 100644
+index 0000000..f6e7639
+Binary files /dev/null and b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc differ
+diff --git a/tests/__pycache__/test_product_price.cpython-312-pytest-9.2.0.pyc b/tests/__pycache__/test_product_price.cpython-312-pytest-9.2.0.pyc
+new file mode 100644
+index 0000000..71533db
+Binary files /dev/null and b/tests/__pycache__/test_product_price.cpython-312-pytest-9.2.0.pyc differ
+diff --git a/tests/test_product_price.py b/tests/test_product_price.py
+new file mode 100644
+index 0000000..e0e3815
+--- /dev/null
++++ b/tests/test_product_price.py
+@@ -0,0 +1,50 @@
++import pytest
++from fastapi.testclient import TestClient
++
++import main
++
++client = TestClient(main.app)
++
++
++@pytest.fixture(autouse=True)
++def clean_products():
++    main.PRODUCTS.clear()
++    yield
++    main.PRODUCTS.clear()
++
++
++def test_patch_price_updates_price_and_keeps_name():
++    main.PRODUCTS.append({"id": 1, "name": "Fertilizer", "price": 10.0})
++
++    response = client.patch("/product/1", json={"price": 12.5})
++
++    assert response.status_code == 200
++    assert response.json() == {"id": 1, "name": "Fertilizer", "price": 12.5}
++    assert main.PRODUCTS == [{"id": 1, "name": "Fertilizer", "price": 12.5}]
++
++
++def test_patch_price_returns_404_for_unknown_product():
++    main.PRODUCTS.append({"id": 1, "name": "Fertilizer", "price": 10.0})
++
++    response = client.patch("/product/999", json={"price": 12.5})
++
++    assert response.status_code == 404
++    assert main.PRODUCTS == [{"id": 1, "name": "Fertilizer", "price": 10.0}]
++
++
++def test_patch_price_requires_price_in_body():
++    main.PRODUCTS.append({"id": 1, "name": "Fertilizer", "price": 10.0})
++
++    response = client.patch("/product/1", json={})
++
++    assert response.status_code == 422
++    assert main.PRODUCTS[0]["price"] == 10.0
++
++
++def test_patch_price_rejects_non_numeric_price():
++    main.PRODUCTS.append({"id": 1, "name": "Fertilizer", "price": 10.0})
++
++    response = client.patch("/product/1", json={"price": "expensive"})
++
++    assert response.status_code == 422
++    assert main.PRODUCTS[0]["price"] == 10.0

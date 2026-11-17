@@ -1,0 +1,5 @@
+{
+  "eval_id": 4,
+  "config": "without_skill",
+  "prompt": "Add a DELETE endpoint for products in the registry-service. Use whatever status code and behavior you think is right when the product doesn't exist. Add tests."
+}
