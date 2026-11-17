@@ -1,0 +1,64 @@
+diff --git a/__pycache__/main.cpython-312.pyc b/__pycache__/main.cpython-312.pyc
+new file mode 100644
+index 0000000..0479d73
+Binary files /dev/null and b/__pycache__/main.cpython-312.pyc differ
+diff --git a/main.py b/main.py
+index f5079fe..5132951 100644
+--- a/main.py
++++ b/main.py
+@@ -11,6 +11,11 @@ def product_count() -> dict[str, int]:
+     return {"count": len(PRODUCTS)}
+ 
+ 
++@app.get("/products")
++def list_products() -> list[dict]:
++    return PRODUCTS
++
++
+ @app.get("/health")
+ def health() -> dict[str, str]:
+     return {"status": "ok"}
+diff --git a/tests/__pycache__/test_list_products.cpython-312-pytest-9.2.0.pyc b/tests/__pycache__/test_list_products.cpython-312-pytest-9.2.0.pyc
+new file mode 100644
+index 0000000..aaf8894
+Binary files /dev/null and b/tests/__pycache__/test_list_products.cpython-312-pytest-9.2.0.pyc differ
+diff --git a/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc
+new file mode 100644
+index 0000000..487def3
+Binary files /dev/null and b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc differ
+diff --git a/tests/test_list_products.py b/tests/test_list_products.py
+new file mode 100644
+index 0000000..ddfe221
+--- /dev/null
++++ b/tests/test_list_products.py
+@@ -0,0 +1,30 @@
++import pytest
++from fastapi.testclient import TestClient
++
++import main
++
++client = TestClient(main.app)
++
++
++@pytest.fixture(autouse=True)
++def clean_products():
++    main.PRODUCTS.clear()
++    yield
++    main.PRODUCTS.clear()
++
++
++def test_list_products_is_empty_when_no_products():
++    response = client.get("/products")
++
++    assert response.status_code == 200
++    assert response.json() == []
++
++
++def test_list_products_returns_all_products():
++    products = [{"id": 1, "name": "seed"}, {"id": 2, "name": "fertilizer"}, {"id": 3}]
++    main.PRODUCTS.extend(products)
++
++    response = client.get("/products")
++
++    assert response.status_code == 200
++    assert response.json() == products

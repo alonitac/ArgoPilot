@@ -1,0 +1,5 @@
+{
+  "eval_id": 2,
+  "config": "without_skill",
+  "prompt": "The registry-service needs a way to update a product's price without resending its name. Add a PATCH endpoint for products, then add tests for it."
+}

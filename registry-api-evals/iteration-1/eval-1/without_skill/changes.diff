@@ -1,0 +1,104 @@
+diff --git a/__pycache__/main.cpython-312.pyc b/__pycache__/main.cpython-312.pyc
+new file mode 100644
+index 0000000..5c19f3e
+Binary files /dev/null and b/__pycache__/main.cpython-312.pyc differ
+diff --git a/main.py b/main.py
+index f5079fe..a6108b5 100644
+--- a/main.py
++++ b/main.py
+@@ -1,4 +1,5 @@
+-from fastapi import FastAPI
++from fastapi import FastAPI, HTTPException, status
++from pydantic import BaseModel
+ 
+ app = FastAPI(title="AgroPilot registry-service", version="0.1.0")
+ 
+@@ -6,11 +7,28 @@ app = FastAPI(title="AgroPilot registry-service", version="0.1.0")
+ PRODUCTS: list[dict] = []
+ 
+ 
++class ProductCreate(BaseModel):
++    name: str
++    price: float
++
++
+ @app.get("/product/count")
+ def product_count() -> dict[str, int]:
+     return {"count": len(PRODUCTS)}
+ 
+ 
++@app.post("/product", status_code=status.HTTP_201_CREATED)
++def create_product(product: ProductCreate) -> dict:
++    if any(existing["name"] == product.name for existing in PRODUCTS):
++        raise HTTPException(
++            status_code=status.HTTP_409_CONFLICT,
++            detail=f"Product with name '{product.name}' already exists",
++        )
++    created = {"id": len(PRODUCTS) + 1, "name": product.name, "price": product.price}
++    PRODUCTS.append(created)
++    return created
++
++
+ @app.get("/health")
+ def health() -> dict[str, str]:
+     return {"status": "ok"}
+diff --git a/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc
+new file mode 100644
+index 0000000..c8768ad
+Binary files /dev/null and b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc differ
+diff --git a/tests/test_product_count.py b/tests/test_product_count.py
+index e730d00..bc65713 100644
+--- a/tests/test_product_count.py
++++ b/tests/test_product_count.py
+@@ -27,3 +27,51 @@ def test_product_count_reflects_number_of_products():
+ 
+     assert response.status_code == 200
+     assert response.json() == {"count": 3}
++
++
++def test_create_product_returns_201_with_created_product():
++    response = client.post("/product", json={"name": "Tomato Seeds", "price": 4.5})
++
++    assert response.status_code == 201
++    assert response.json() == {"id": 1, "name": "Tomato Seeds", "price": 4.5}
++
++
++def test_create_product_stores_product():
++    client.post("/product", json={"name": "Tomato Seeds", "price": 4.5})
++
++    assert main.PRODUCTS == [{"id": 1, "name": "Tomato Seeds", "price": 4.5}]
++    assert client.get("/product/count").json() == {"count": 1}
++
++
++def test_create_product_rejects_duplicate_name():
++    client.post("/product", json={"name": "Tomato Seeds", "price": 4.5})
++
++    response = client.post("/product", json={"name": "Tomato Seeds", "price": 9.0})
++
++    assert response.status_code == 409
++    assert len(main.PRODUCTS) == 1
++    assert main.PRODUCTS[0]["price"] == 4.5
++
++
++def test_create_product_allows_distinct_names():
++    client.post("/product", json={"name": "Tomato Seeds", "price": 4.5})
++
++    response = client.post("/product", json={"name": "Corn Seeds", "price": 3.0})
++
++    assert response.status_code == 201
++    assert response.json() == {"id": 2, "name": "Corn Seeds", "price": 3.0}
++    assert len(main.PRODUCTS) == 2
++
++
++def test_create_product_rejects_missing_fields():
++    response = client.post("/product", json={"name": "Tomato Seeds"})
++
++    assert response.status_code == 422
++    assert main.PRODUCTS == []
++
++
++def test_create_product_rejects_non_numeric_price():
++    response = client.post("/product", json={"name": "Tomato Seeds", "price": "cheap"})
++
++    assert response.status_code == 422
++    assert main.PRODUCTS == []

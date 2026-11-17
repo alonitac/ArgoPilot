@@ -1,0 +1,72 @@
+diff --git a/__pycache__/main.cpython-312.pyc b/__pycache__/main.cpython-312.pyc
+new file mode 100644
+index 0000000..159edb2
+Binary files /dev/null and b/__pycache__/main.cpython-312.pyc differ
+diff --git a/main.py b/main.py
+index f5079fe..f6f0dd9 100644
+--- a/main.py
++++ b/main.py
+@@ -1,4 +1,4 @@
+-from fastapi import FastAPI
++from fastapi import FastAPI, HTTPException, Response, status
+ 
+ app = FastAPI(title="AgroPilot registry-service", version="0.1.0")
+ 
+@@ -11,6 +11,15 @@ def product_count() -> dict[str, int]:
+     return {"count": len(PRODUCTS)}
+ 
+ 
++@app.delete("/product/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
++def delete_product(product_id: int) -> Response:
++    for index, product in enumerate(PRODUCTS):
++        if product["id"] == product_id:
++            del PRODUCTS[index]
++            return Response(status_code=status.HTTP_204_NO_CONTENT)
++    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Product {product_id} not found")
++
++
+ @app.get("/health")
+ def health() -> dict[str, str]:
+     return {"status": "ok"}
+diff --git a/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc
+new file mode 100644
+index 0000000..dfa5a84
+Binary files /dev/null and b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc differ
+diff --git a/tests/test_product_count.py b/tests/test_product_count.py
+index e730d00..52d8af4 100644
+--- a/tests/test_product_count.py
++++ b/tests/test_product_count.py
+@@ -27,3 +27,33 @@ def test_product_count_reflects_number_of_products():
+ 
+     assert response.status_code == 200
+     assert response.json() == {"count": 3}
++
++
++def test_delete_product_removes_it_and_returns_no_content():
++    main.PRODUCTS.extend([{"id": 1}, {"id": 2}, {"id": 3}])
++
++    response = client.delete("/product/2")
++
++    assert response.status_code == 204
++    assert response.content == b""
++    assert main.PRODUCTS == [{"id": 1}, {"id": 3}]
++
++
++def test_delete_missing_product_returns_404_and_leaves_products_unchanged():
++    main.PRODUCTS.extend([{"id": 1}, {"id": 2}])
++
++    response = client.delete("/product/99")
++
++    assert response.status_code == 404
++    assert response.json() == {"detail": "Product 99 not found"}
++    assert main.PRODUCTS == [{"id": 1}, {"id": 2}]
++
++
++def test_delete_same_product_twice_returns_404_the_second_time():
++    main.PRODUCTS.extend([{"id": 1}])
++
++    assert client.delete("/product/1").status_code == 204
++    response = client.delete("/product/1")
++
++    assert response.status_code == 404
++    assert main.PRODUCTS == []

@@ -1,0 +1,5 @@
+{
+  "eval_id": 3,
+  "config": "without_skill",
+  "prompt": "Add GET /products to the registry-service that returns all products. Add tests too."
+}

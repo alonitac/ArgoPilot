@@ -1,0 +1,60 @@
+diff --git a/__pycache__/main.cpython-312.pyc b/__pycache__/main.cpython-312.pyc
+new file mode 100644
+index 0000000..1081a2d
+Binary files /dev/null and b/__pycache__/main.cpython-312.pyc differ
+diff --git a/main.py b/main.py
+index f5079fe..d6465a8 100644
+--- a/main.py
++++ b/main.py
+@@ -14,3 +14,8 @@ def product_count() -> dict[str, int]:
+ @app.get("/health")
+ def health() -> dict[str, str]:
+     return {"status": "ok"}
++
++
++@app.get("/v1/products")
++def list_products() -> list[dict]:
++    return PRODUCTS
+diff --git a/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc
+new file mode 100644
+index 0000000..e8ef9ee
+Binary files /dev/null and b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc differ
+diff --git a/tests/__pycache__/test_products.cpython-312-pytest-9.2.0.pyc b/tests/__pycache__/test_products.cpython-312-pytest-9.2.0.pyc
+new file mode 100644
+index 0000000..2d7e9a4
+Binary files /dev/null and b/tests/__pycache__/test_products.cpython-312-pytest-9.2.0.pyc differ
+diff --git a/tests/test_products.py b/tests/test_products.py
+new file mode 100644
+index 0000000..10fbe68
+--- /dev/null
++++ b/tests/test_products.py
+@@ -0,0 +1,29 @@
++import pytest
++from fastapi.testclient import TestClient
++
++import main
++
++client = TestClient(main.app)
++
++
++@pytest.fixture(autouse=True)
++def clean_products():
++    main.PRODUCTS.clear()
++    yield
++    main.PRODUCTS.clear()
++
++
++def test_list_products_returns_empty_array_when_no_products():
++    response = client.get("/v1/products")
++
++    assert response.status_code == 200
++    assert response.json() == []
++
++
++def test_list_products_returns_all_products():
++    main.PRODUCTS.extend([{"id": 1, "name": "Seed"}, {"id": 2, "name": "Fertilizer"}])
++
++    response = client.get("/v1/products")
++
++    assert response.status_code == 200
++    assert response.json() == [{"id": 1, "name": "Seed"}, {"id": 2, "name": "Fertilizer"}]

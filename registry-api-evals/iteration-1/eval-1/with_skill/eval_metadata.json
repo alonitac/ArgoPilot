@@ -1,0 +1,5 @@
+{
+  "eval_id": 1,
+  "config": "with_skill",
+  "prompt": "Add a POST /product endpoint to the registry-service that creates a product from a name and a price. If a product with the same name already exists, reject the request. Include tests."
+}

@@ -1,0 +1,140 @@
+diff --git a/__pycache__/main.cpython-312.pyc b/__pycache__/main.cpython-312.pyc
+new file mode 100644
+index 0000000..4881196
+Binary files /dev/null and b/__pycache__/main.cpython-312.pyc differ
+diff --git a/main.py b/main.py
+index f5079fe..30c0423 100644
+--- a/main.py
++++ b/main.py
+@@ -1,4 +1,8 @@
+-from fastapi import FastAPI
++from http import HTTPStatus
++
++from fastapi import FastAPI, Request, Response
++from fastapi.exceptions import RequestValidationError
++from fastapi.responses import JSONResponse
+ 
+ app = FastAPI(title="AgroPilot registry-service", version="0.1.0")
+ 
+@@ -6,6 +10,37 @@ app = FastAPI(title="AgroPilot registry-service", version="0.1.0")
+ PRODUCTS: list[dict] = []
+ 
+ 
++class ApiError(Exception):
++    def __init__(self, status: int, code: str, detail: str) -> None:
++        self.status = status
++        self.code = code
++        self.detail = detail
++
++
++def problem_response(status: int, code: str, detail: str) -> JSONResponse:
++    return JSONResponse(
++        status_code=status,
++        content={
++            "type": "about:blank",
++            "title": HTTPStatus(status).phrase,
++            "status": status,
++            "detail": detail,
++            "code": code,
++        },
++        media_type="application/problem+json",
++    )
++
++
++@app.exception_handler(ApiError)
++def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
++    return problem_response(exc.status, exc.code, exc.detail)
++
++
++@app.exception_handler(RequestValidationError)
++def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
++    return problem_response(422, "VALIDATION", "Request validation failed.")
++
++
+ @app.get("/product/count")
+ def product_count() -> dict[str, int]:
+     return {"count": len(PRODUCTS)}
+@@ -14,3 +49,12 @@ def product_count() -> dict[str, int]:
+ @app.get("/health")
+ def health() -> dict[str, str]:
+     return {"status": "ok"}
++
++
++@app.delete("/v1/product/{product_id}", status_code=204)
++def delete_product(product_id: int) -> Response:
++    for index, product in enumerate(PRODUCTS):
++        if product["id"] == product_id:
++            del PRODUCTS[index]
++            return Response(status_code=204)
++    raise ApiError(404, "NOT_FOUND", f"Product {product_id} not found.")
+diff --git a/tests/__pycache__/test_delete_product.cpython-312-pytest-9.2.0.pyc b/tests/__pycache__/test_delete_product.cpython-312-pytest-9.2.0.pyc
+new file mode 100644
+index 0000000..38d19e6
+Binary files /dev/null and b/tests/__pycache__/test_delete_product.cpython-312-pytest-9.2.0.pyc differ
+diff --git a/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc
+new file mode 100644
+index 0000000..765254e
+Binary files /dev/null and b/tests/__pycache__/test_product_count.cpython-312-pytest-9.2.0.pyc differ
+diff --git a/tests/test_delete_product.py b/tests/test_delete_product.py
+new file mode 100644
+index 0000000..f08ed72
+--- /dev/null
++++ b/tests/test_delete_product.py
+@@ -0,0 +1,57 @@
++import pytest
++from fastapi.testclient import TestClient
++
++import main
++
++client = TestClient(main.app)
++
++
++@pytest.fixture(autouse=True)
++def clean_products():
++    main.PRODUCTS.clear()
++    yield
++    main.PRODUCTS.clear()
++
++
++def test_delete_product_returns_204_and_removes_product():
++    main.PRODUCTS.extend([{"id": 1}, {"id": 2}, {"id": 3}])
++
++    response = client.delete("/v1/product/2")
++
++    assert response.status_code == 204
++    assert response.content == b""
++    assert main.PRODUCTS == [{"id": 1}, {"id": 3}]
++
++
++def test_delete_missing_product_returns_404_problem_json():
++    main.PRODUCTS.extend([{"id": 1}])
++
++    response = client.delete("/v1/product/99")
++
++    assert response.status_code == 404
++    assert response.headers["content-type"] == "application/problem+json"
++    body = response.json()
++    assert body["status"] == 404
++    assert body["code"] == "NOT_FOUND"
++    assert main.PRODUCTS == [{"id": 1}]
++
++
++def test_delete_product_when_no_products_returns_404_problem_json():
++    response = client.delete("/v1/product/1")
++
++    assert response.status_code == 404
++    assert response.headers["content-type"] == "application/problem+json"
++    assert response.json()["code"] == "NOT_FOUND"
++
++
++def test_delete_product_with_non_integer_id_returns_422_problem_json():
++    main.PRODUCTS.extend([{"id": 1}])
++
++    response = client.delete("/v1/product/abc")
++
++    assert response.status_code == 422
++    assert response.headers["content-type"] == "application/problem+json"
++    body = response.json()
++    assert body["status"] == 422
++    assert body["code"] == "VALIDATION"
++    assert main.PRODUCTS == [{"id": 1}]
