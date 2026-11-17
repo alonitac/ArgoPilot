@@ -1,0 +1,29 @@
+{
+  "skill_name": "registry-api",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Add a POST /product endpoint to the registry-service that creates a product from a name and a price. If a product with the same name already exists, reject the request. Include tests.",
+      "expected_output": "Route is under /v1 (e.g. POST /v1/products). Invalid body returns 422 with application/problem+json and code VALIDATION. Duplicate name returns 409 with code CONFLICT. Success returns the created product with only the spec'd fields. Tests cover the success case plus the 422 and 409 cases, and the response is not FastAPI's default {detail} body. The agent runs uv run pytest and reports the result.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "The registry-service needs a way to update a product's price without resending its name. Add a PATCH endpoint for products, then add tests for it.",
+      "expected_output": "PATCH route is under /v1 and only changes fields present in the body; a body containing only price leaves name unchanged. Unknown product id returns 404 with application/problem+json and code NOT_FOUND. Invalid value (e.g. negative or non-numeric price) returns 422 with code VALIDATION. Tests cover the partial update, the 404, and the 422. Agent runs uv run pytest before claiming completion.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Add GET /products to the registry-service that returns all products. Add tests too.",
+      "expected_output": "Route is under /v1 (GET /v1/products), not the unprefixed path. Returns a JSON array. When there are no products it returns 200 with [] rather than 404. Tests include the empty-list case and a non-empty case. The agent mentions that the existing /health and /product/count routes are not under /v1 and does not move them without asking.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Add a DELETE endpoint for products in the registry-service. Use whatever status code and behavior you think is right when the product doesn't exist. Add tests.",
+      "expected_output": "The agent does not silently invent the behavior for a missing product. Per the skill's rule that silent spec gaps are asked, it asks the user what should happen (e.g. 404 NOT_FOUND vs. idempotent 204) before choosing, or implements the clearly specified parts and asks about the missing-product case. Any tests it writes cover the success case and the failure case it was told about.",
+      "files": []
+    }
+  ]
+}
