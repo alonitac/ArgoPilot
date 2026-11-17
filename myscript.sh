@@ -7,6 +7,10 @@ sdfdfsdf
 sdfdff
 sdfdf
 
+dfdf
+gd
+fgfdg
+
 if [ -f README.md ]; then
 
 echo existed
